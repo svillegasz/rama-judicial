@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  sync-entidades:
+  revisar-procesos:
     runs-on: ubuntu-latest
     env:
       SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}

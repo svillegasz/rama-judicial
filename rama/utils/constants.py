@@ -92,14 +92,6 @@ RAMA_HEADERS: Final[dict[str, str]] = {
 
 
 # -------------------------------------------------------------------------
-# Validation Rules
-# -------------------------------------------------------------------------
-VALIDATION_RULES: Final[dict[str, Callable]] = {
-    FECHA_ACTUACION_FIELD: check_fecha,
-}
-
-
-# -------------------------------------------------------------------------
 # Helper Functions
 # -------------------------------------------------------------------------
 def format_payload_template(payload: Dict[str, Any]) -> str:
@@ -166,3 +158,10 @@ def check_fecha(value):
     except Exception:
         # If there's any error parsing the date, return False
         return False
+
+# -------------------------------------------------------------------------
+# Validation Rules
+# -------------------------------------------------------------------------
+VALIDATION_RULES: Final[dict[str, Callable]] = {
+    FECHA_ACTUACION_FIELD: check_fecha,
+}

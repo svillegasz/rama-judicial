@@ -26,6 +26,6 @@ jobs:
       - name: Install dependencies
         run: poetry install
       - name: Sync Entidades
-        run: poetry run python revisar_procesos.py
+        run: poetry run python sync_entidades.py
       - name: Keep alive 
         uses: gautamkrishnar/keepalive-workflow@v2

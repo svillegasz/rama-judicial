@@ -29,7 +29,7 @@ jobs:
           credentials_json: '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}'
       - name: Install dependencies
         run: poetry install
-      - name: Sync Entidades
-        run: poetry run python sync_entidades.py
+      - name: Revisar Procesos
+        run: poetry run python revisar_procesos.py
       - name: Keep alive 
         uses: gautamkrishnar/keepalive-workflow@v2

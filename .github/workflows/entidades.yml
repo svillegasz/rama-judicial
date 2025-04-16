@@ -1,0 +1,28 @@
+name: Sync Entidades
+on:
+  schedule:
+    - cron: "0 5 * * 0"
+  workflow_dispatch:
+
+jobs:
+  sync-entidades:
+    runs-on: ubuntu-latest
+    env:
+      SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: '2.0.1'
+      - name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}'
+      - name: Install dependencies
+        run: poetry install
+      - name: Sync Entidades
+        run: poetry run python revisar_procesos.py
+      - name: Keep alive 
+        uses: gautamkrishnar/keepalive-workflow@v2

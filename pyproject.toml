@@ -1,0 +1,22 @@
+[project]
+name = "rama-judicial"
+version = "0.1.0"
+description = "Automatización procesos rama judicial"
+authors = [
+    {name = "Sebastian Villegas Zapata",email = "sebasvilz@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "beautifulsoup4 (>=4.13.3,<5.0.0)",
+    "pandas (>=2.2.3,<3.0.0)",
+    "prefect (>=3.3.4,<4.0.0)",
+    "requests (>=2.31.0,<3.0.0)",
+    "google-api-python-client (>=2.167.0,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

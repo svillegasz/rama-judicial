@@ -193,4 +193,11 @@ pyrightconfig.json
 .history
 .ionide
 
-env
+# Logs
+logs/
+*.log
+
+# Editor settings
+.idea/
+
+unir*.json

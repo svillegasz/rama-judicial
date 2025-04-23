@@ -8,8 +8,9 @@ import os
 
 from rama.tasks.google_drive import SPREADSHEET_ID
 from rama.utils.constants import ACTUACION_FIELD, FECHA_ACTUACION_FIELD
+from rama.utils.logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("tasks.notifications")
 
 
 @task

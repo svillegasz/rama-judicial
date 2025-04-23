@@ -29,8 +29,10 @@ from rama.utils.constants import (
     VALOR_COLUMN,
     EMAIL_SUBJECT_TEMPLATE
 )
+from rama.utils.logging_utils import get_logger
+
 # Configure logging
-logger = logging.getLogger(__name__)
+logger = get_logger("workflows.procesos")
 
 @flow(name="Revisar Procesos Judiciales")
 def revisar_procesos():
@@ -43,9 +45,14 @@ def revisar_procesos():
     entidades_df = get_spreadsheet_data(sheet_name=ENTIDADES_SHEET_NAME)
     procesos_to_notify = []
     procesos_to_review = []
+    
+    # Log the start of the process
+    logger.info("Starting process review workflow")
+    logger.info(f"Found {len(procesos_df)} processes to check")
         
     for index, proceso in procesos_df.iterrows():
         try:        
+            logger.info(f"Processing process {proceso[RADICADO_COLUMN]}")
             soup = fetch_html_content(RAMA_URL)
             payload = extract_data_from_page(soup, PAYLOAD_SELECTORS)
             payload[CIUDAD_FIELD] = proceso[RADICADO_COLUMN][:5]
@@ -77,9 +84,11 @@ def revisar_procesos():
     if not procesos_to_notify and not procesos_to_review:
         logger.info("No processes to notify or review")
     else:
+        logger.info("Generating summary report")
         summary_df = generate_summary_report(procesos_to_notify, procesos_to_review)
         update_spreadsheet_data(summary_df, sheet_name=SUMMARY_SHEET_NAME)
 
+        logger.info("Sending email notification")
         send_email_notification(
             subject=EMAIL_SUBJECT_TEMPLATE,
             message=format_notification_message(procesos_to_notify, procesos_to_review),

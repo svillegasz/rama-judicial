@@ -31,5 +31,23 @@ jobs:
         run: poetry install
       - name: Revisar Procesos
         run: poetry run python revisar_procesos.py
-      - name: Keep alive 
-        uses: gautamkrishnar/keepalive-workflow@v2
+      - name: Check last commit date
+        id: check
+        run: |
+          LAST_COMMIT_DATE=$(git log -1 --format=%cI)
+          LAST_COMMIT_TIMESTAMP=$(date -d "$LAST_COMMIT_DATE" +%s)
+          NOW_TIMESTAMP=$(date +%s)
+          AGE_SECONDS=$((NOW_TIMESTAMP - LAST_COMMIT_TIMESTAMP))
+          AGE_DAYS=$((AGE_SECONDS / 86400))
+          
+          echo "Last commit was $AGE_DAYS days ago."
+          echo "age_days=$AGE_DAYS" >> "$GITHUB_OUTPUT"
+      - name: Make dummy commit if last commit > 45 days ago
+        if: steps.check.outputs.age_days > 45
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "Keepalive: $(date)" > .keepalive
+          git add .keepalive
+          git commit -m "chore: keep repository alive (cron)"
+          git push

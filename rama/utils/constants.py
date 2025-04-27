@@ -134,8 +134,8 @@ def extract_session_cookie(response) -> str:
     return ""
 
 
-def check_fecha(value):
-    """Check if the date is recent (within the last 7 days)"""    
+def check_fecha(value, days_range: int = 7):
+    """Check if the date is recent (within the last n days)"""    
     if not value:
         return False
     
@@ -152,9 +152,9 @@ def check_fecha(value):
         date_str = f"{day} {month_en} {year}"
         date = datetime.strptime(date_str, "%d %b %Y")
         
-        # Check if the date is within the last 7 days
-        seven_days_ago = datetime.now() - timedelta(days=7)
-        return date >= seven_days_ago
+        # Check if the date is within the last n days
+        days_ago = datetime.now() - timedelta(days=days_range)
+        return date >= days_ago
     except Exception:
         # If there's any error parsing the date, return False
         return False

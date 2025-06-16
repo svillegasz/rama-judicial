@@ -43,10 +43,7 @@ jobs:
           echo "Last commit was $AGE_DAYS days ago."
           echo "age_days=$AGE_DAYS" >> "$GITHUB_OUTPUT"
       - name: Make dummy commit if last commit > 45 days ago
-        if: steps.check.outputs.age_days > 45
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           echo "Keepalive: $(date)" > .keepalive
           git add .keepalive
           git commit -m "chore: keep repository alive (cron)"

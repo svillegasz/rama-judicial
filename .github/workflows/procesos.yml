@@ -44,6 +44,59 @@ jobs:
           echo "age_days=$AGE_DAYS" >> "$GITHUB_OUTPUT"
       - name: Make dummy commit if last commit > 45 days ago
         run: |
+        name: Revisar Procesos
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  revisar-procesos:
+    runs-on: ubuntu-latest
+    env:
+      SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: '2.0.1'
+      - name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}'
+      - name: Install dependencies
+        run: poetry install
+      - name: Revisar Procesos
+        run: poetry run python revisar_procesos.py
+      - name: Check last commit date
+        id: check
+        run: |
+          LAST_COMMIT_DATE=$(git log -1 --format=%cI)
+          LAST_COMMIT_TIMESTAMP=$(date -d "$LAST_COMMIT_DATE" +%s)
+          NOW_TIMESTAMP=$(date +%s)
+          AGE_SECONDS=$((NOW_TIMESTAMP - LAST_COMMIT_TIMESTAMP))
+          AGE_DAYS=$((AGE_SECONDS / 86400))
+          
+          echo "Last commit was $AGE_DAYS days ago."
+          echo "age_days=$AGE_DAYS" >> "$GITHUB_OUTPUT"
+      - name: Make dummy commit if last commit > 45 days ago
+        run: |
+          git config user.name "Sebastian Villegas"
+          git config user.email "sebasvilz@gmail.com"
+          echo "Keepalive: $(date)" > .keepalive
+          git add .keepalive
+          git commit -m "chore: keep repository alive (cron)"
+          git push
+
           echo "Keepalive: $(date)" > .keepalive
           git add .keepalive
           git commit -m "chore: keep repository alive (cron)"

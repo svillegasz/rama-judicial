@@ -13,6 +13,7 @@ jobs:
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     steps:
       - name: Checkout
@@ -44,9 +45,9 @@ jobs:
           echo "age_days=$AGE_DAYS" >> "$GITHUB_OUTPUT"
       - name: Make dummy commit if last commit > 45 days ago
         run: |
-          git config user.name "Sebastian Villegas"
-          git config user.email "sebasvilz@gmail.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           echo "Keepalive: $(date)" > .keepalive
           git add .keepalive
           git commit -m "chore: keep repository alive (cron)"
-          git push
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main

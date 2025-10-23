@@ -7,7 +7,7 @@ import logging
 import os
 
 from rama.tasks.google_drive import SPREADSHEET_ID
-from rama.utils.constants import ACTUACION_FIELD, FECHA_ACTUACION_FIELD
+from rama.utils.constants import ACTUACION_FIELD, FECHA_ACTUACION_FIELD, format_date_for_display
 from rama.utils.logging_utils import get_logger
 
 logger = get_logger("tasks.notifications")
@@ -89,14 +89,16 @@ def format_notification_message(procesos_to_notify, procesos_to_impulsar, proces
     notification_items = []
     for proceso_dict in procesos_to_notify:
         for process_id, data in proceso_dict.items():
-            notification_items.append(f'<li><strong>{process_id}:</strong> {data[ACTUACION_FIELD]} - {data[FECHA_ACTUACION_FIELD]}</li>')
+            fecha = format_date_for_display(data.get(FECHA_ACTUACION_FIELD, ''))
+            notification_items.append(f'<li><strong>{process_id}:</strong> {data[ACTUACION_FIELD]} - {fecha}</li>')
     
     # Extract impulsar data from list of dictionaries
     impulsar_items = []
     if procesos_to_impulsar:
         for proceso_dict in procesos_to_impulsar:
             for process_id, data in proceso_dict.items():
-                impulsar_items.append(f'<li><strong>{process_id}:</strong> {data[ACTUACION_FIELD]} - {data[FECHA_ACTUACION_FIELD]}</li>')
+                fecha = format_date_for_display(data.get(FECHA_ACTUACION_FIELD, ''))
+                impulsar_items.append(f'<li><strong>{process_id}:</strong> {data[ACTUACION_FIELD]} - {fecha}</li>')
     
     # Extract review data from list of dictionaries
     review_items = []
@@ -135,9 +137,10 @@ def generate_summary_report(procesos_to_notify, procesos_to_impulsar, procesos_t
         notify_data = []
         for proceso_dict in procesos_to_notify:
             for process_id, data in proceso_dict.items():
+                fecha = format_date_for_display(data.get(FECHA_ACTUACION_FIELD, ""))
                 notify_data.append({
                     "Proceso con novedad": process_id,
-                    "Fecha de Actuacion": data.get(FECHA_ACTUACION_FIELD, ""),
+                    "Fecha de Actuacion": fecha,
                     "Actuacion": data.get(ACTUACION_FIELD, "")
                 })
         notify_df = pd.DataFrame(notify_data)
@@ -149,9 +152,10 @@ def generate_summary_report(procesos_to_notify, procesos_to_impulsar, procesos_t
         impulsar_data = []
         for proceso_dict in procesos_to_impulsar:
             for process_id, data in proceso_dict.items():
+                fecha = format_date_for_display(data.get(FECHA_ACTUACION_FIELD, ""))
                 impulsar_data.append({
                     "Proceso a impulsar": process_id,
-                    "Fecha de Actuacion": data.get(FECHA_ACTUACION_FIELD, ""),
+                    "Fecha de Actuacion": fecha,
                     "Actuacion": data.get(ACTUACION_FIELD, "")
                 })
         impulsar_df = pd.DataFrame(impulsar_data)

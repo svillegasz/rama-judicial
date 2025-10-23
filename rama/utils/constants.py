@@ -1,4 +1,4 @@
-from typing import Callable, NamedTuple, Final, Dict, Any
+from typing import Callable, Final, NamedTuple, Dict, Any
 from datetime import datetime, timedelta
 
 # -------------------------------------------------------------------------
@@ -9,33 +9,15 @@ class Selector(NamedTuple):
     css_selector: str
     result_type: str
 
-
 # -------------------------------------------------------------------------
-# URLs and Endpoints
+# Field Names (matching API response)
 # -------------------------------------------------------------------------
-RAMA_URL: Final[str] = "https://procesos.ramajudicial.gov.co/procesoscs/ConsultaJusticias21.aspx"
-
-
-# -------------------------------------------------------------------------
-# HTML Selectors
-# -------------------------------------------------------------------------
-CIUDADES_SELECTOR: Final[str] = "select[id='ddlCiudad'] option"
-ENTIDADES_SELECTOR: Final[str] = "select[id='ddlEntidadEspecialidad'] option"
-
-PAYLOAD_SELECTORS: Final[list[Selector]] = [
-    Selector("manager_script_hidden_field", "input[id='managerScript_HiddenField']", "value"),
-    Selector("proceso_id", "input[id='txtNumeroProcesoID']", "value"),
-    Selector(SESSION_ID_FIELD := "session_id", "input[id='nwoDediSpUsIdlroWehT_ID']", "value"),
-]
-
-DATA_SELECTORS: Final[list[Selector]] = [
-    Selector(FECHA_ACTUACION_FIELD := "fecha_actuacion", "span[id='rptActuaciones_lblFechaActuacion_0']", "text"),
-    Selector(ACTUACION_FIELD := "actuacion", "span[id='rptActuaciones_lblActuacion_0']", "text"),
-    Selector(ANOTACION_FIELD := "anotacion", "span[id='rptActuaciones_lblAnotacion_0']", "text"),
-    Selector(FECHA_INICIO_FIELD := "fecha_inicio", "span[id='rptActuaciones_lblFechaInicio_0']", "text"),
-    Selector(FECHA_FIN_FIELD := "fecha_fin", "span[id='rptActuaciones_lblFechaFin_0']", "text"),
-    Selector(FECHA_REGISTRO_FIELD := "fecha_registro", "span[id='rptActuaciones_lblFechaRegistro_0']", "text")
-]
+FECHA_ACTUACION_FIELD: Final[str] = "fecha_actuacion"
+ACTUACION_FIELD: Final[str] = "actuacion"
+ANOTACION_FIELD: Final[str] = "anotacion"
+FECHA_INICIO_FIELD: Final[str] = "fecha_inicial"
+FECHA_FIN_FIELD: Final[str] = "fecha_final"
+FECHA_REGISTRO_FIELD: Final[str] = "fecha_registro"
 
 
 # -------------------------------------------------------------------------
@@ -53,21 +35,23 @@ ENTIDADES_COLUMNS: Final[list[str]] = [ENTIDAD_COLUMN, VALOR_COLUMN]
 
 
 # -------------------------------------------------------------------------
-# Form Field Names
+# Legacy Web Scraping Constants (still used by entidades workflow)
 # -------------------------------------------------------------------------
+RAMA_URL: Final[str] = "https://procesos.ramajudicial.gov.co/procesoscs/ConsultaJusticias21.aspx"
+CIUDADES_SELECTOR: Final[str] = "select[id='ddlCiudad'] option"
+ENTIDADES_SELECTOR: Final[str] = "select[id='ddlEntidadEspecialidad'] option"
+ASP_NET_SESSION_ID: Final[str] = "ASP.NET_SessionId"
+
+SESSION_ID_FIELD: Final[str] = "session_id"
 CIUDAD_FIELD: Final[str] = "ciudad"
 EVENT_TARGET_FIELD: Final[str] = "__EVENTTARGET"
 MANAGER_SCRIPT_FIELD: Final[str] = "manager_script"
-PROCESO_FIELD: Final[str] = "proceso"
-ENTIDAD_FIELD: Final[str] = "entidad"
 
-
-# -------------------------------------------------------------------------
-# HTTP Request Constants
-# -------------------------------------------------------------------------
-ASP_NET_SESSION_ID: Final[str] = "ASP.NET_SessionId"
-
-EMAIL_SUBJECT_TEMPLATE: Final[str] = "Notificación Rama Judicial"
+PAYLOAD_SELECTORS: Final[list[Selector]] = [
+    Selector("manager_script_hidden_field", "input[id='managerScript_HiddenField']", "value"),
+    Selector("proceso_id", "input[id='txtNumeroProcesoID']", "value"),
+    Selector(SESSION_ID_FIELD, "input[id='nwoDediSpUsIdlroWehT_ID']", "value"),
+]
 
 PAYLOAD_TEMPLATE: Final[str] = "managerScript={manager_script}&managerScript_HiddenField={manager_script_hidden_field}&ddlCiudad={ciudad}&ddlEntidadEspecialidad={entidad}&rblConsulta=1&{proceso_id}={proceso}&SliderNumeroProceso=1&ddlTipoSujeto=0&ddlTipoPersona=0&SliderConsultaNom=0&ddlYear=...&tbxNumeroConstruido=050013103&SliderConstruirNumero=0&ddlTipoSujeto2=0&ddlTipoPersona2=0&SliderActFecha=0&SliderMagistrado=0&ddlTipoPersonaCN=1&SliderConsultaIdSujeto=0&HumanVerification=SLIDER&txtNumeroProcesoID={proceso_id}&nwoDediSpUsIdlroWehT_ID={session_id}&ddlJuzgados=0&hdControl=&BotDetector=BotValue&__EVENTTARGET=&__EVENTARGUMENT=&__LASTFOCUS=&__VIEWSTATE=&__ASYNCPOST=true&{session_id_action}"
 
@@ -92,6 +76,12 @@ RAMA_HEADERS: Final[dict[str, str]] = {
 
 
 # -------------------------------------------------------------------------
+# Email Configuration
+# -------------------------------------------------------------------------
+EMAIL_SUBJECT_TEMPLATE: Final[str] = "Notificación Rama Judicial"
+
+
+# -------------------------------------------------------------------------
 # Helper Functions
 # -------------------------------------------------------------------------
 def format_payload_template(payload: Dict[str, Any]) -> str:
@@ -105,7 +95,7 @@ def format_payload_template(payload: Dict[str, Any]) -> str:
     Returns:
         Formatted payload string
     """
-    session_id_action = f"{payload[SESSION_ID_FIELD]}=Consultar" if payload[SESSION_ID_FIELD] else ""
+    session_id_action = f"{payload[SESSION_ID_FIELD]}=Consultar" if payload.get(SESSION_ID_FIELD) else ""
     payload["session_id_action"] = session_id_action
     
     class DefaultDict(dict):
@@ -135,22 +125,16 @@ def extract_session_cookie(response) -> str:
 
 
 def check_fecha(value, days_range: int = 7):
-    """Check if the date is recent (within the last n days)"""    
+    """Check if the date is recent (within the last n days)
+    
+    Always uses ISO format parsing (2025-02-12T00:00:00)
+    """    
     if not value:
         return False
     
     try:
-        # Parse the Spanish date format (e.g., "19 Oct 2022")
-        months_es = {
-            'Ene': 'Jan', 'Feb': 'Feb', 'Mar': 'Mar', 'Abr': 'Apr',
-            'May': 'May', 'Jun': 'Jun', 'Jul': 'Jul', 'Ago': 'Aug',
-            'Sep': 'Sep', 'Oct': 'Oct', 'Nov': 'Nov', 'Dic': 'Dec'
-        }
-        
-        day, month_es, year = value.split()
-        month_en = months_es.get(month_es, month_es)
-        date_str = f"{day} {month_en} {year}"
-        date = datetime.strptime(date_str, "%d %b %Y")
+        # Parse ISO format from API: "2025-02-12T00:00:00"
+        date = datetime.fromisoformat(value.replace('Z', '+00:00').split('.')[0])
         
         # Check if the date is within the last n days
         days_ago = datetime.now() - timedelta(days=days_range)
@@ -160,22 +144,16 @@ def check_fecha(value, days_range: int = 7):
 
 
 def check_fecha_older_than_months(value, months: int = 6):
-    """Check if the date is older than n months"""    
+    """Check if the date is older than n months
+    
+    Always uses ISO format parsing (2025-02-12T00:00:00)
+    """    
     if not value:
         return False
     
     try:
-        # Parse the Spanish date format (e.g., "19 Oct 2022")
-        months_es = {
-            'Ene': 'Jan', 'Feb': 'Feb', 'Mar': 'Mar', 'Abr': 'Apr',
-            'May': 'May', 'Jun': 'Jun', 'Jul': 'Jul', 'Ago': 'Aug',
-            'Sep': 'Sep', 'Oct': 'Oct', 'Nov': 'Nov', 'Dic': 'Dec'
-        }
-        
-        day, month_es, year = value.split()
-        month_en = months_es.get(month_es, month_es)
-        date_str = f"{day} {month_en} {year}"
-        date = datetime.strptime(date_str, "%d %b %Y")
+        # Parse ISO format from API: "2025-02-12T00:00:00"
+        date = datetime.fromisoformat(value.replace('Z', '+00:00').split('.')[0])
         
         # Check if the date is older than n months
         months_ago = datetime.now() - timedelta(days=months * 30)  # Approximate months as 30 days
@@ -183,9 +161,34 @@ def check_fecha_older_than_months(value, months: int = 6):
     except Exception:
         raise Exception(f"Error parsing date: {value}")
 
-# -------------------------------------------------------------------------
-# Validation Rules
-# -------------------------------------------------------------------------
-VALIDATION_RULES: Final[dict[str, Callable]] = {
-    FECHA_ACTUACION_FIELD: check_fecha,
-}
+
+def format_date_for_display(value):
+    """Format ISO date to Spanish format: day-month-year (e.g., "10-Oct-2025")
+    
+    Args:
+        value: ISO date string like "2025-02-12T00:00:00"
+        
+    Returns:
+        Formatted date like "12-Feb-2025"
+    """
+    if not value:
+        return ""
+    
+    try:
+        # Parse ISO format from API: "2025-02-12T00:00:00"
+        date = datetime.fromisoformat(value.replace('Z', '+00:00').split('.')[0])
+        
+        # Convert to Spanish month abbreviations
+        months_en_to_es = {
+            'Jan': 'Ene', 'Feb': 'Feb', 'Mar': 'Mar', 'Apr': 'Abr',
+            'May': 'May', 'Jun': 'Jun', 'Jul': 'Jul', 'Aug': 'Ago',
+            'Sep': 'Sep', 'Oct': 'Oct', 'Nov': 'Nov', 'Dec': 'Dic'
+        }
+        month_abbr = date.strftime("%b")
+        month_es = months_en_to_es.get(month_abbr, month_abbr)
+        
+        # Format as day-month-year
+        return f"{date.day:02d}-{month_es}-{date.year}"
+    except Exception:
+        return value
+

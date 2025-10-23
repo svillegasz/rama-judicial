@@ -27,7 +27,9 @@ from rama.utils.constants import (
     SUMMARY_SHEET_NAME,
     VALIDATION_RULES,
     VALOR_COLUMN,
-    EMAIL_SUBJECT_TEMPLATE
+    EMAIL_SUBJECT_TEMPLATE,
+    check_fecha_older_than_months,
+    FECHA_ACTUACION_FIELD
 )
 from rama.utils.logging_utils import get_logger
 
@@ -44,6 +46,7 @@ def revisar_procesos():
     procesos_df = get_spreadsheet_data(sheet_name=PROCESOS_SHEET_NAME)
     entidades_df = get_spreadsheet_data(sheet_name=ENTIDADES_SHEET_NAME)
     procesos_to_notify = []
+    procesos_to_impulsar = []
     procesos_to_review = []
     
     # Log the start of the process
@@ -71,8 +74,12 @@ def revisar_procesos():
             data = extract_data_from_page(soup, DATA_SELECTORS)
             
             is_valid, messages = validate_data(data, VALIDATION_RULES)
-                    
-            if is_valid:
+            
+            # Check if the process is older than 6 months and needs to be impulsado
+            if FECHA_ACTUACION_FIELD in data and check_fecha_older_than_months(data[FECHA_ACTUACION_FIELD], 6):
+                logger.info(f"Process {proceso[RADICADO_COLUMN]} is older than 6 months, adding to impulsar list")
+                procesos_to_impulsar.append({proceso[RADICADO_COLUMN]: data})
+            elif is_valid:
                 logger.info(f"Validation passed for process {proceso[RADICADO_COLUMN]}, adding to notification list")
                 procesos_to_notify.append({proceso[RADICADO_COLUMN]: data})            
             else:
@@ -81,17 +88,17 @@ def revisar_procesos():
             procesos_to_review.append({proceso[RADICADO_COLUMN]: str(e)})
             logger.error(f"Error processing process {proceso[RADICADO_COLUMN]}: {e}")
 
-    if not procesos_to_notify and not procesos_to_review:
+    if not procesos_to_notify and not procesos_to_impulsar and not procesos_to_review:
         logger.info("No processes to notify or review")
     else:
         logger.info("Generating summary report")
-        summary_df = generate_summary_report(procesos_to_notify, procesos_to_review)
+        summary_df = generate_summary_report(procesos_to_notify, procesos_to_impulsar, procesos_to_review)
         update_spreadsheet_data(summary_df, sheet_name=SUMMARY_SHEET_NAME)
 
         logger.info("Sending email notification")
         send_email_notification(
             subject=EMAIL_SUBJECT_TEMPLATE,
-            message=format_notification_message(procesos_to_notify, procesos_to_review),
+            message=format_notification_message(procesos_to_notify, procesos_to_impulsar, procesos_to_review),
             recipient_email=os.getenv("EMAIL_RECIPIENT")
         )
         

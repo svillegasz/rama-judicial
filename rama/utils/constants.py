@@ -156,8 +156,32 @@ def check_fecha(value, days_range: int = 7):
         days_ago = datetime.now() - timedelta(days=days_range)
         return date >= days_ago
     except Exception:
-        # If there's any error parsing the date, return False
+        raise Exception(f"Error parsing date: {value}")
+
+
+def check_fecha_older_than_months(value, months: int = 6):
+    """Check if the date is older than n months"""    
+    if not value:
         return False
+    
+    try:
+        # Parse the Spanish date format (e.g., "19 Oct 2022")
+        months_es = {
+            'Ene': 'Jan', 'Feb': 'Feb', 'Mar': 'Mar', 'Abr': 'Apr',
+            'May': 'May', 'Jun': 'Jun', 'Jul': 'Jul', 'Ago': 'Aug',
+            'Sep': 'Sep', 'Oct': 'Oct', 'Nov': 'Nov', 'Dic': 'Dec'
+        }
+        
+        day, month_es, year = value.split()
+        month_en = months_es.get(month_es, month_es)
+        date_str = f"{day} {month_en} {year}"
+        date = datetime.strptime(date_str, "%d %b %Y")
+        
+        # Check if the date is older than n months
+        months_ago = datetime.now() - timedelta(days=months * 30)  # Approximate months as 30 days
+        return date < months_ago
+    except Exception:
+        raise Exception(f"Error parsing date: {value}")
 
 # -------------------------------------------------------------------------
 # Validation Rules

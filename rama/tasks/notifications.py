@@ -71,26 +71,28 @@ def send_email_notification(subject, message, recipient_email,
         raise Exception(f"Failed to send email notification: {str(e)}") 
     
 @task
-def format_notification_message(procesos_to_notify, procesos_to_impulsar, procesos_to_review):
-    """Format the notification message with the process data
+def format_notification_message(procesos_to_notify, procesos_to_impulsar, procesos_to_review, total_procesos):
+    """Format the notification message with the process data and summary statistics
     
     Args:
-        procesos_to_notify: List of dictionaries, each containing a single key-value pair
-                           where key is process_id and value is process data
-        procesos_to_impulsar: List of dictionaries, each containing a single key-value pair
-                           where key is process_id and value is process data for processes older than 6 months
-        procesos_to_review: List of dictionaries, each containing a single key-value pair
-                           where key is process_id and value is error message
+        procesos_to_notify: List of dictionaries with processes that have recent updates
+        procesos_to_impulsar: List of dictionaries with processes requiring impulso (>6 months)
+        procesos_to_review: List of dictionaries with processes that failed processing
+        total_procesos: Total number of processes checked
     
     Returns:
-        HTML formatted message string
+        HTML formatted message string with summary and detailed lists
     """    
     # Extract notification data from list of dictionaries
     notification_items = []
     for proceso_dict in procesos_to_notify:
         for process_id, data in proceso_dict.items():
             fecha = format_date_for_display(data.get(FECHA_ACTUACION_FIELD, ''))
-            notification_items.append(f'<li><strong>{process_id}:</strong> {data[ACTUACION_FIELD]} - {fecha}</li>')
+            actuacion = data.get(ACTUACION_FIELD, '')
+            notification_items.append(
+                f'<li><strong>{process_id}</strong><br/>'
+                f'<span style="color: #666; font-size: 0.9em;">{actuacion} - {fecha}</span></li>'
+            )
     
     # Extract impulsar data from list of dictionaries
     impulsar_items = []
@@ -98,34 +100,170 @@ def format_notification_message(procesos_to_notify, procesos_to_impulsar, proces
         for proceso_dict in procesos_to_impulsar:
             for process_id, data in proceso_dict.items():
                 fecha = format_date_for_display(data.get(FECHA_ACTUACION_FIELD, ''))
-                impulsar_items.append(f'<li><strong>{process_id}:</strong> {data[ACTUACION_FIELD]} - {fecha}</li>')
+                actuacion = data.get(ACTUACION_FIELD, '')
+                impulsar_items.append(
+                    f'<li><strong>{process_id}</strong><br/>'
+                    f'<span style="color: #666; font-size: 0.9em;">{actuacion} - {fecha}</span></li>'
+                )
     
     # Extract review data from list of dictionaries
     review_items = []
     if procesos_to_review:
         for proceso_dict in procesos_to_review:
             for process_id, error in proceso_dict.items():
-                review_items.append(f'<li><strong>{process_id}:</strong> {error}</li>')
+                review_items.append(
+                    f'<li><strong>{process_id}</strong><br/>'
+                    f'<span style="color: #d32f2f; font-size: 0.9em;">{error}</span></li>'
+                )
+    
+    # Calculate summary statistics
+    processed_successfully = total_procesos - len(procesos_to_review)
     
     return f"""
     <html>
+    <head>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }}
+            h2 {{
+                color: #1976d2;
+                border-bottom: 3px solid #1976d2;
+                padding-bottom: 10px;
+            }}
+            .summary-box {{
+                background-color: #f5f5f5;
+                border-left: 4px solid #1976d2;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+            }}
+            .summary-box h3 {{
+                margin-top: 0;
+                color: #1976d2;
+            }}
+            .stat-row {{
+                display: flex;
+                justify-content: space-between;
+                padding: 5px 0;
+                border-bottom: 1px solid #ddd;
+            }}
+            .stat-label {{
+                font-weight: bold;
+            }}
+            .section {{
+                margin: 30px 0;
+            }}
+            .section h3 {{
+                color: #424242;
+                background-color: #e3f2fd;
+                padding: 10px;
+                border-radius: 4px;
+            }}
+            .warning-section h3 {{
+                background-color: #fff3e0;
+                color: #e65100;
+            }}
+            .error-section h3 {{
+                background-color: #ffebee;
+                color: #c62828;
+            }}
+            ul {{
+                list-style-type: none;
+                padding-left: 0;
+            }}
+            li {{
+                padding: 10px;
+                margin: 5px 0;
+                background-color: #fafafa;
+                border-left: 3px solid #2196f3;
+                border-radius: 3px;
+            }}
+            .warning-section li {{
+                border-left-color: #ff9800;
+            }}
+            .error-section li {{
+                border-left-color: #f44336;
+            }}
+            .footer {{
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 2px solid #ddd;
+                text-align: center;
+            }}
+            .button {{
+                display: inline-block;
+                padding: 12px 24px;
+                background-color: #1976d2;
+                color: white !important;
+                text-decoration: none;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+        </style>
+    </head>
     <body>
-        <h2>Notificación de Rama Judicial</h2>
-        {f'''<p>Se ha detectado una actualización importante en los siguientes procesos:</p>
-        <ul>
-            {''.join(notification_items)}
-        </ul>
-        <br>''' if notification_items else ''}
-        {f'''<p>Se requiere impulsar los siguientes procesos:</p>
-        <ul>
-            {''.join(impulsar_items)}
-        </ul>
-        <br>''' if impulsar_items else ''}
-        {f'''<p>Se ha detectado fallos al procesar los siguientes procesos:</p>
-        <ul>
-            {''.join(review_items)}
-        </ul>''' if review_items else ''}
-        <p>Ver detalles completos: <a href="https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit?usp=sharing">Link al reporte</a></p>
+        <h2>📋 Notificación de Rama Judicial</h2>
+        
+        <div class="summary-box">
+            <h3>Resumen de Procesamiento</h3>
+            <div class="stat-row">
+                <span class="stat-label">Total de procesos revisados:</span>
+                <span>{total_procesos}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Procesados exitosamente:</span>
+                <span>{processed_successfully}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Con actualizaciones recientes:</span>
+                <span style="color: #2e7d32; font-weight: bold;">{len(procesos_to_notify)}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Requieren impulso (>6 meses):</span>
+                <span style="color: #f57c00; font-weight: bold;">{len(procesos_to_impulsar)}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Errores al procesar:</span>
+                <span style="color: #c62828; font-weight: bold;">{len(procesos_to_review)}</span>
+            </div>
+        </div>
+        
+        {f'''<div class="section">
+            <h3>✅ Actualizaciones Recientes (últimos 7 días)</h3>
+            <p>Los siguientes procesos han tenido actualizaciones importantes:</p>
+            <ul>
+                {''.join(notification_items)}
+            </ul>
+        </div>''' if notification_items else ''}
+        
+        {f'''<div class="section warning-section">
+            <h3>⚠️ Procesos que Requieren Impulso</h3>
+            <p>Los siguientes procesos no han tenido movimiento en más de 6 meses y requieren acción:</p>
+            <ul>
+                {''.join(impulsar_items)}
+            </ul>
+        </div>''' if impulsar_items else ''}
+        
+        {f'''<div class="section error-section">
+            <h3>❌ Errores al Procesar</h3>
+            <p>No se pudieron procesar los siguientes procesos:</p>
+            <ul>
+                {''.join(review_items)}
+            </ul>
+        </div>''' if review_items else ''}
+        
+        <div class="footer">
+            <p>Para ver el reporte completo y más detalles:</p>
+            <a href="https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit?usp=sharing" class="button">
+                Ver Reporte Completo
+            </a>
+        </div>
     </body>
     </html>
     """
